@@ -241,7 +241,7 @@ function Get-PSPowerSchoolStudents {
         $count = Get-PSPowerSchoolRecordCount -EndpointURL $EndPointURL
         Write-Host "Info: $count students found."
 
-        $counter = 0
+        $counter = 1
         
         do {
 
