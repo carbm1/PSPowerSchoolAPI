@@ -76,13 +76,13 @@ function Invoke-PSPowerSchoolRESTMethod {
     if ($PageSize -lt 100 -and $PageSize -gt 0) {
         if ($EndpointURL.Contains("?")) {
             #The Endpoint URL should already contain parameters if we are specifying page sizes.
-            $EndpointURL +="&pagesize=$($PageSize)"
+            $EndpointURL += "&pagesize=$($PageSize)"
         } else {
             $EndpointURL += "?pagesize=$($PageSize)"
         }
     }
     
-    $uri ="$($(Get-Variable -Name 'PSPowerSchool').Value.URL)$($EndpointURL)"
+    $uri = "$($(Get-Variable -Name 'PSPowerSchool').Value.URL)$($EndpointURL)"
     Write-Verbose $uri
 
     try {
@@ -104,7 +104,8 @@ function Invoke-PSPowerSchoolPowerQuery {
     .LINK
         https://support.powerschool.com/developer/#/page/powerqueries
     
-        #>
+    #>
+
     param (
         [parameter(Mandatory=$True)][string]$queryName,
         [parameter(Mandatory=$False)][int]$PageNumber = 0,
@@ -149,6 +150,17 @@ function Get-PSPowerSchoolRecordCount {
 function Get-PSPowerSchoolStudents {
     <#
 
+    .SYNOPSIS
+    Return student data as a object either using a PowerQuery or the API.
+
+    .EXAMPLE
+    Get Student Data Directly from the API
+    Get-PSPowerSchoolStudents -EnrollmentStatus "A" -Expansions demographics,school_enrollment,contact_info,counselors
+
+    .EXAMPLE
+    Run PowerQuery
+    Get-PSPowerSchoolStudents -PowerQuery -QueryName "com.xyz.plugin.api.students"
+
     .LINK
         https://support.powerschool.com/developer/#/page/student-resources
     .LINK
@@ -156,23 +168,25 @@ function Get-PSPowerSchoolStudents {
     .LINK
         https://support.powerschool.com/developer/#studentextensionresource
 
-    #>  
+    #>
     
     Param(
         [parameter(Mandatory=$False)][Switch]$PowerQuery,
         [parameter(Mandatory=$False)][string]$QueryName = "com.gmail.PowerSchool-AD-Sync.api.students",
         [parameter(Mandatory=$False)][int16]$MaxPages = 0,
-        [parameter(Mandatory=$False)][string]$SchoolId,
+        [parameter(Mandatory=$False)][Switch]$Progress,
         [parameter(Mandatory=$False)][string]$EnrollmentStatus = 'A,P', #Comma separated string.
-        [parameter(Mandatory=$False)][string]$Expansions = "demographics,addresses,alerts,phones,school_enrollment,ethnicity_race,contact,contact_info,initial_enrollment,schedule_setup,fees,lunch",
-        [parameter(Mandatory=$False)][string]$Extensions = "s_stu_x,s_stu_ncea_x,studentcorefields"
+        [parameter(Mandatory=$False)]
+        [ValidateSet("demographics","addresses","alerts","phones","school_enrollment","ethnicity_race","contact","contact_info","initial_enrollment","schedule_setup","fees","lunch","counselors","global_id")]
+        [array]$Expansions = @(),
+        [parameter(Mandatory=$False)][string]$Extensions = $null #"s_stu_x,s_stu_ncea_x,studentcorefields"
     )
 
     #ArrayList to hold our students.
     $students = [System.Collections.Generic.List[Object]]::new()
 
     if ($PowerQuery) {
-        Write-Verbose "Info: Running PowerQuery."
+        Write-Host "Info: Invoking PowerQuery $($QueryName)."
         $counter = 0
         
         do {
@@ -187,7 +201,7 @@ function Get-PSPowerSchoolStudents {
                 }
 
                 $Response = Invoke-PSPowerSchoolPowerQuery -queryName $QueryName -PageNumber $counter
-                Write-Verbose "Info: Returned $($Response.record.count) records."
+                Write-Verbose "Info: $($Response.record.count) records returned."
 
                 $Response.record.tables.students | ForEach-Object {
                     $students.Add($PSItem)
@@ -198,6 +212,8 @@ function Get-PSPowerSchoolStudents {
                     $NoMorePages = $True
                 }
 
+                if ($Progress) { Write-Host "." -NoNewline }
+
                 $counter++
 
             } catch {
@@ -205,6 +221,8 @@ function Get-PSPowerSchoolStudents {
             }
 
         } until ($NoMorePages)
+
+        if ($Progress) { Write-Host "." -NoNewline }
     
     } else {
 
@@ -221,7 +239,7 @@ function Get-PSPowerSchoolStudents {
         Write-Verbose "$($EndpointURL)"
 
         $count = Get-PSPowerSchoolRecordCount -EndpointURL $EndPointURL
-        Write-Verbose "Info: $count students returned."
+        Write-Host "Info: $count students found."
 
         $counter = 0
         
@@ -239,11 +257,15 @@ function Get-PSPowerSchoolStudents {
                 }
             }
 
+            if ($Progress) { Write-Host "." -NoNewline }
+
             $counter++
 
         } while ($students.Count -lt $count)
 
     }
+
+    if ($Progress) { Write-Host "`n" }
 
     return $students
 
@@ -265,7 +287,18 @@ Function Get-PSPowerSchoolTableSchema {
 }
 
 function Get-PSPowerSchoolUsers {
-    param(
+
+    <#
+    
+    .SYNOPSIS
+    This must be a PowerQuery to return users from PowerSchool.
+    
+    .EXAMPLE
+    Get-PSPowerSchoolUsers -QueryName "com.xyz.plugin.api.users"
+    
+    #>
+
+    Param(
         [parameter(Mandatory=$False)][string]$QueryName = "com.gmail.PowerSchool-AD-Sync.api.users"
     )
 
@@ -298,8 +331,19 @@ function Get-PSPowerSchoolUsers {
 
 }
 
-function Get-PSPowerSchoolSchool {
+function Get-PSPowerSchoolSchools {
 
-    Invoke-PSPowerSchoolRESTMethod -EndpointURL "/ws/v1/district/school" | Select-Object -ExpandProperty schools | Select-Object -ExpandProperty school
+    <#
+    
+    .SYNOPSIS
+    Return an Array of Schools
+
+    .EXAMPLE
+    Get-PSPowerSchoolSchools
+    
+    #>
+
+    $schools = Invoke-PSPowerSchoolRESTMethod -EndpointURL "/ws/v1/district/school" | Select-Object -ExpandProperty schools | Select-Object -ExpandProperty school
+    return $schools
 
 }
