@@ -11,27 +11,29 @@ Connect-ToPowerSchool -URL "https://myDistrict1.powerschool.com" -ClientID "3829
 
 # Get Students
 ````
-# Syntax
-# Get-PSPowerSchoolStudents [-PowerQuery] [[-QueryName] <String>] [[-MaxPages] <Int16>] [[-EnrollmentStatus] <String>] [[-Expansions] <Array>] [[-Extensions] <String>] [-Progress]
+<#
+SYNTAX
+    Get-PSPowerSchoolStudents [-PowerQuery] [-QueryName <String>] [-MaxPages <Int16>] [-Progress] [<CommonParameters>]
+    
+    Get-PSPowerSchoolStudents [-MaxPages <Int16>] [-Progress] [-EnrollmentStatus <String>] [-Expansions <Array>] [-Extensions <String>] [-FirstName <String>] [-LastName <String>] [-SchoolId <Int32>] 
+    [<CommonParameters>]
+#>
 
-# Retrieve data from API
+# Retrieve Students from API
 Get-PSPowerSchoolStudents -EnrollmentStatus "A" -Expansions demographics,school_enrollment,contact_info,counselors
+
+# Search for Students with API
+Get-PSPowerSchoolStudents -EnrollmentStatus "A" -FirstName "John"
 
 # Retrieve a PowerQuery
 Get-PSPowerSchoolStudents -PowerQuery -QueryName "com.xyz.plugin.api.students"
 ````
 
-# Get Student
+# Get A Student
 ````
 #Return an individual student based on their id (NOT LOCAL ID)
 Get-PSPowerSchoolStudent -id 1234 -Expansions demographics,school_enrollment
-
-#Search for First Name and return an array
-Get-PSPowerSchoolStudent -FirstName "John"
-
-#Search for Last Name and return an array
-Get-PSPowerSchoolStudent -LastName "Doe"
-```
+````
 
 # Expansions
 You can retrieve a list of expansions and submit the request again to retrieve the expansion data.  This will slow down your reponse time but will include additional information.

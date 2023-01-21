@@ -171,15 +171,18 @@ function Get-PSPowerSchoolStudents {
     #>
     
     Param(
-        [parameter(Mandatory=$False)][Switch]$PowerQuery,
-        [parameter(Mandatory=$False)][string]$QueryName = "com.gmail.PowerSchool-AD-Sync.api.students",
+        [parameter(Mandatory=$False,ParameterSetName = 'PowerQuery')][Switch]$PowerQuery,
+        [parameter(Mandatory=$False,ParameterSetName = 'PowerQuery')][string]$QueryName = "com.gmail.PowerSchool-AD-Sync.api.students",
         [parameter(Mandatory=$False)][int16]$MaxPages = 0,
         [parameter(Mandatory=$False)][Switch]$Progress,
-        [parameter(Mandatory=$False)][string]$EnrollmentStatus = 'A,P', #Comma separated string.
-        [parameter(Mandatory=$False)]
+        [parameter(Mandatory=$False,ParameterSetName = 'API')][string]$EnrollmentStatus = 'A,P', #Comma separated string.
+        [parameter(Mandatory=$False,ParameterSetName = 'API')]
         [ValidateSet("demographics","addresses","alerts","phones","school_enrollment","ethnicity_race","contact","contact_info","initial_enrollment","schedule_setup","fees","lunch","counselors","global_id")]
         [array]$Expansions = @(),
-        [parameter(Mandatory=$False)][string]$Extensions = $null #"s_stu_x,s_stu_ncea_x,studentcorefields"
+        [parameter(Mandatory=$False,ParameterSetName = 'API')][string]$Extensions = $null, #"s_stu_x,s_stu_ncea_x,studentcorefields"
+        [parameter(Mandatory=$False,ParameterSetName = 'API')][string]$FirstName,
+        [parameter(Mandatory=$False,ParameterSetName = 'API')][string]$LastName,
+        [parameter(Mandatory=$False,ParameterSetName = 'API')][int]$SchoolId #not implemented yet.
     )
 
     #ArrayList to hold our students.
@@ -227,6 +230,14 @@ function Get-PSPowerSchoolStudents {
     } else {
 
         $EndPointURL = "/ws/v1/district/student?q=school_enrollment.enroll_status==($($EnrollmentStatus))"
+
+        if ($FirstName) {
+            $EndpointURL += ";name.First_name==$($FirstName)"
+        }
+
+        if ($LastName) {
+            $EndpointURL += ";name.Last_name==$($LastName)"
+        }
 
         if ($Expansions) { 
             $EndPointURL += "&expansions=$($Expansions -join ',')"
@@ -289,82 +300,26 @@ function Get-PSPowerSchoolStudent {
     #>
     
     Param(
-        [parameter(Mandatory=$True, ParameterSetName = 'ID')][int]$Id,
-        [parameter(Mandatory=$True, ParameterSetName = 'Local_id')][int]$Local_Id,
-        [parameter(Mandatory=$True, ParameterSetName = 'FirstName')][string]$FirstName,
-        [parameter(Mandatory=$True, ParameterSetName = 'LastName')][string]$LastName,
-        [parameter(Mandatory=$False)][int]$SchoolId, #results from API will be limited to
-        [parameter(Mandatory=$False)][Switch]$Progress,
+        [parameter(Mandatory=$True)][int]$Id,
         [parameter(Mandatory=$False)]
         [ValidateSet("demographics","addresses","alerts","phones","school_enrollment","ethnicity_race","contact","contact_info","initial_enrollment","schedule_setup","fees","lunch","counselors","global_id")]
         [array]$Expansions = @(),
         [parameter(Mandatory=$False)][string]$Extensions = $null #"s_stu_x,s_stu_ncea_x,studentcorefields"
     )
 
-    if ($Id) {
-        #this will use a different endpoint and q=local_id==0 appears to be ignored but makings defining the endpoint easier.
-        $EndPointURL = "/ws/v1/student/$($Id)?q=local_id==0" 
-    } else {
-        $EndPointURL = "/ws/v1/district/student"
-    }
-
-    #Unfortunately we can only search for one item at a time.
-    if ($Local_Id) {
-        $EndPointURL += "?q=local_id==$($Local_Id)"
-    } elseif ($FirstName) {
-        $EndPointURL += "?q=name.First_name==$($FirstName)"
-    } elseif ($LastName) {
-        $EndPointURL += "?q=name.Last_name==$($LastName)"
-    }
-
-    if ($Expansions) { 
+    #the use of ?q=local_id==0 is for the question mark.
+    $EndPointURL = "/ws/v1/student/$($Id)?q=local_id==0"
+    
+    if ($expansions) { 
         $EndPointURL += "&expansions=$($Expansions -join ',')"
     }
 
-    if ($Extensions) {
+    if ($extensions) {
         $EndPointURL += "&extensions=$($Extensions -join ',')"
     }
 
-    if ($Id) {
-        #only looking for 1 student.
-        $student = Invoke-PSPowerSchoolRESTMethod -EndpointURL $EndPointURL | Select-Object -ExpandProperty student
-        return $student
-    } else {
-
-        #ArrayList to hold our students.
-        $students = [System.Collections.Generic.List[Object]]::new()
-
-        Write-Verbose "$($EndpointURL)"
-
-        $count = Get-PSPowerSchoolRecordCount -EndpointURL $EndPointURL
-        Write-Host "Info: $count students found."
-
-        $counter = 1
-        
-        do {
-
-            $response = Invoke-PSPowerSchoolRESTMethod -EndpointURL $EndPointURL -Method "GET" -PageNumber $counter # -PageSize $MaxResults
-            
-            $response.students.student | ForEach-Object {
-                $students.Add($PSitem)
-            }
-
-            if ($MaxPages -ge 1) {
-                if ($counter -ge $MaxPages - 1) {
-                    break
-                }
-            }
-
-            if ($Progress) { Write-Host "." -NoNewline }
-
-            $counter++
-
-        } while ($students.Count -lt $count)
-
-        if ($Progress) { Write-Host "`n" }
-
-        return $students
-    }
+    $student = Invoke-PSPowerSchoolRESTMethod -EndpointURL $EndPointURL | Select-Object -ExpandProperty student
+    return $student
 
 }
 
