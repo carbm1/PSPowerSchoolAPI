@@ -34,8 +34,8 @@
     #RequiredModules = @()
     
     # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-    FunctionsToExport = 'Connect-ToPowerSchool','Get-PSPowerSchoolDatabaseTables','Get-PSPowerSchoolRecordCount','Get-PSPowerSchoolSchool','Get-PSPowerSchoolStudents',
-    'Get-PSPowerSchoolTableSchema','Get-PSPowerSchoolUsers','Invoke-PSPowerSchoolPowerQuery','Invoke-PSPowerSchoolRESTMethod'
+    FunctionsToExport = 'Connect-ToPowerSchool','Get-PSPowerSchoolDatabaseTables','Get-PSPowerSchoolRecordCount','Get-PSPowerSchoolSchools','Get-PSPowerSchoolStudents',
+    'Get-PSPowerSchoolTableSchema','Get-PSPowerSchoolUsers','Invoke-PSPowerSchoolPowerQuery','Invoke-PSPowerSchoolRESTMethod','Get-PSPowerSchoolStudent'
     
     # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
     CmdletsToExport = @()

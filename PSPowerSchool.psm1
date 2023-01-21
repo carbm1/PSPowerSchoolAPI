@@ -271,6 +271,103 @@ function Get-PSPowerSchoolStudents {
 
 }
 
+function Get-PSPowerSchoolStudent {
+    <#
+
+    .SYNOPSIS
+    Return a search term list of students from the API. Can only search for 1 field at a time.
+
+    .EXAMPLE
+    Get-PSPowerSchoolStudent -Id 12345
+
+    .EXAMPLE
+    Get-PSPowerSchoolStudent -FirstName "John"
+
+    .EXAMPLE
+    Get-PSPowerSchoolStudent -LastName "Doe"
+
+    #>
+    
+    Param(
+        [parameter(Mandatory=$True, ParameterSetName = 'ID')][int]$Id,
+        [parameter(Mandatory=$True, ParameterSetName = 'Local_id')][int]$Local_Id,
+        [parameter(Mandatory=$True, ParameterSetName = 'FirstName')][string]$FirstName,
+        [parameter(Mandatory=$True, ParameterSetName = 'LastName')][string]$LastName,
+        [parameter(Mandatory=$False)][int]$SchoolId, #results from API will be limited to
+        [parameter(Mandatory=$False)][Switch]$Progress,
+        [parameter(Mandatory=$False)]
+        [ValidateSet("demographics","addresses","alerts","phones","school_enrollment","ethnicity_race","contact","contact_info","initial_enrollment","schedule_setup","fees","lunch","counselors","global_id")]
+        [array]$Expansions = @(),
+        [parameter(Mandatory=$False)][string]$Extensions = $null #"s_stu_x,s_stu_ncea_x,studentcorefields"
+    )
+
+    if ($Id) {
+        #this will use a different endpoint and q=local_id==0 appears to be ignored but makings defining the endpoint easier.
+        $EndPointURL = "/ws/v1/student/$($Id)?q=local_id==0" 
+    } else {
+        $EndPointURL = "/ws/v1/district/student"
+    }
+
+    #Unfortunately we can only search for one item at a time.
+    if ($Local_Id) {
+        $EndPointURL += "?q=local_id==$($Local_Id)"
+    } elseif ($FirstName) {
+        $EndPointURL += "?q=name.First_name==$($FirstName)"
+    } elseif ($LastName) {
+        $EndPointURL += "?q=name.Last_name==$($LastName)"
+    }
+
+    if ($Expansions) { 
+        $EndPointURL += "&expansions=$($Expansions -join ',')"
+    }
+
+    if ($Extensions) {
+        $EndPointURL += "&extensions=$($Extensions -join ',')"
+    }
+
+    if ($Id) {
+        #only looking for 1 student.
+        $student = Invoke-PSPowerSchoolRESTMethod -EndpointURL $EndPointURL | Select-Object -ExpandProperty student
+        return $student
+    } else {
+
+        #ArrayList to hold our students.
+        $students = [System.Collections.Generic.List[Object]]::new()
+
+        Write-Verbose "$($EndpointURL)"
+
+        $count = Get-PSPowerSchoolRecordCount -EndpointURL $EndPointURL
+        Write-Host "Info: $count students found."
+
+        $counter = 1
+        
+        do {
+
+            $response = Invoke-PSPowerSchoolRESTMethod -EndpointURL $EndPointURL -Method "GET" -PageNumber $counter # -PageSize $MaxResults
+            
+            $response.students.student | ForEach-Object {
+                $students.Add($PSitem)
+            }
+
+            if ($MaxPages -ge 1) {
+                if ($counter -ge $MaxPages - 1) {
+                    break
+                }
+            }
+
+            if ($Progress) { Write-Host "." -NoNewline }
+
+            $counter++
+
+        } while ($students.Count -lt $count)
+
+        if ($Progress) { Write-Host "`n" }
+
+        return $students
+    }
+
+}
+
 function Get-PSPowerSchoolDatabaseTables {
     $EndPointURL = "/ws/schema/table"
     $response = Invoke-PSPowerSchoolRESTMethod -EndpointURL $EndPointURL

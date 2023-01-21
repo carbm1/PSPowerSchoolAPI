@@ -21,6 +21,18 @@ Get-PSPowerSchoolStudents -EnrollmentStatus "A" -Expansions demographics,school_
 Get-PSPowerSchoolStudents -PowerQuery -QueryName "com.xyz.plugin.api.students"
 ````
 
+# Get Student
+````
+#Return an individual student based on their id (NOT LOCAL ID)
+Get-PSPowerSchoolStudent -id 1234 -Expansions demographics,school_enrollment
+
+#Search for First Name and return an array
+Get-PSPowerSchoolStudent -FirstName "John"
+
+#Search for Last Name and return an array
+Get-PSPowerSchoolStudent -LastName "Doe"
+```
+
 # Expansions
 You can retrieve a list of expansions and submit the request again to retrieve the expansion data.  This will slow down your reponse time but will include additional information.
 ````
