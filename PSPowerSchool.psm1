@@ -51,11 +51,10 @@ function Invoke-PSPowerSchoolRESTMethod {
     param(
         [parameter(Mandatory=$True)][string]$EndpointURL,
         [parameter(Mandatory=$False)][ValidateSet('GET','POST','PATCH')][string]$Method = 'GET',
+        [parameter(Mandatory=$False)][int]$PageSize = 100,
         [parameter(Mandatory=$False)][int]$PageNumber=0,
-        [parameter(Mandatory=$False)][int]$PageSize=0,
         [parameter(Mandatory=$False)][string]$Body = $null
     )
-
 
     $headers = @{
         "Authorization" = "Bearer $($(Get-Variable -Name "PSPowerSchool").Value.access_token)"
@@ -73,7 +72,7 @@ function Invoke-PSPowerSchoolRESTMethod {
         }
     }
 
-    if ($PageSize -lt 100 -and $PageSize -gt 0) {
+    if ($PageSize -lt 100 -and $PageSize -gt 0) { #not the default 100.
         if ($EndpointURL.Contains("?")) {
             #The Endpoint URL should already contain parameters if we are specifying page sizes.
             $EndpointURL += "&pagesize=$($PageSize)"
@@ -108,6 +107,7 @@ function Invoke-PSPowerSchoolPowerQuery {
 
     param (
         [parameter(Mandatory=$True)][string]$queryName,
+        [parameter(Mandatory=$False)][int]$PageSize = 100, #Set to zero to stream response.
         [parameter(Mandatory=$False)][int]$PageNumber = 0,
         [parameter(Mandatory=$False)][string]$postBody = $null
     )
@@ -116,7 +116,7 @@ function Invoke-PSPowerSchoolPowerQuery {
     Write-Verbose "$URL"
 
     try {
-        $response = Invoke-PSPowerSchoolRESTMethod -EndpointURL $URL -Method "POST" -PageNumber $PageNumber -Body $postBody
+        $response = Invoke-PSPowerSchoolRESTMethod -EndpointURL $URL -Method "POST" -PageSize $PageSize -PageNumber $PageNumber -Body $postBody
         return $response
     } catch {
         Throw "Failed to invoke PowerQuery. $PSItem"
@@ -173,6 +173,7 @@ function Get-PSPowerSchoolStudents {
     Param(
         [parameter(Mandatory=$False,ParameterSetName = 'PowerQuery')][Switch]$PowerQuery,
         [parameter(Mandatory=$False,ParameterSetName = 'PowerQuery')][string]$QueryName = "com.gmail.PowerSchool-AD-Sync.api.students",
+        [parameter(Mandatory=$False)][int]$PageSize = 100,
         [parameter(Mandatory=$False)][int16]$MaxPages = 0,
         [parameter(Mandatory=$False)][Switch]$Progress,
         [parameter(Mandatory=$False,ParameterSetName = 'API')][string]$EnrollmentStatus = 'A,P', #Comma separated string.
@@ -203,15 +204,15 @@ function Get-PSPowerSchoolStudents {
                     }
                 }
 
-                $Response = Invoke-PSPowerSchoolPowerQuery -queryName $QueryName -PageNumber $counter
+                $Response = Invoke-PSPowerSchoolPowerQuery -queryName $QueryName -PageSize $PageSize -PageNumber $counter
                 Write-Verbose "Info: $($Response.record.count) records returned."
 
                 $Response.record.tables.students | ForEach-Object {
                     $students.Add($PSItem)
                 }
 
-                #results are in sets of 100. Anything less means we have reached the last page.
-                if ($Response.record.count -lt 100) {
+                #results are paginated. Anything less than the supplied -PageSize means we have reached the last page.
+                if ($Response.record.count -lt $pageSize) {
                     $NoMorePages = $True
                 }
 
@@ -256,7 +257,7 @@ function Get-PSPowerSchoolStudents {
         
         do {
 
-            $response = Invoke-PSPowerSchoolRESTMethod -EndpointURL $EndPointURL -Method "GET" -PageNumber $counter # -PageSize $MaxResults
+            $response = Invoke-PSPowerSchoolRESTMethod -EndpointURL $EndPointURL -PageSize $PageSize -PageNumber $counter
             
             $response.students.student | ForEach-Object {
                 $students.Add($PSitem)
