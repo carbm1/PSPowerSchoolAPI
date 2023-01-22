@@ -72,7 +72,7 @@ function Invoke-PSPowerSchoolRESTMethod {
         }
     }
 
-    if ($PageSize -lt 100 -and $PageSize -gt 0) { #not the default 100.
+    if ($PageSize -ne 100) { #not the default 100.
         if ($EndpointURL.Contains("?")) {
             #The Endpoint URL should already contain parameters if we are specifying page sizes.
             $EndpointURL += "&pagesize=$($PageSize)"
